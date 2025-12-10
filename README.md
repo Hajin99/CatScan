@@ -13,7 +13,7 @@ https://www.aihub.or.kr/aihubdata/data/view.do?pageIndex=1&currMenu=115&topMenu=
 ## Folder
 ```
 CatScan/
-├── Training/<-- 학습용 (이미지+라벨)
+├── Training/           <-- 학습용 (이미지+라벨)
 │   └── CAT/
 │      ├── ARCH/
 │      └── LYING/
