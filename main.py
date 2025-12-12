@@ -122,9 +122,37 @@ class DataGenerator(tf.keras.utils.Sequence):
 train_path = r'C:\CatScan\Training'
 test_path = r'C:\CatScan\Validation'
 
+
 # 함수 실행
 x_train_paths, y_train = make_data_from_folder(train_path)
 x_test_paths, y_test = make_data_from_folder(test_path)
+
+def sample_data(x, y, max_per_class=300):
+    """
+    각 클래스 별로 일정 개수(max_per_class)만 남기고 샘플링해주는 함수
+    """
+    y_labels = np.argmax(y, axis=1)
+    sampled_x = []
+    sampled_y = []
+
+    for cls in np.unique(y_labels):
+        idx = np.where(y_labels == cls)[0]
+        np.random.shuffle(idx)
+        selected = idx[:max_per_class]
+
+        sampled_x.extend(x[selected])
+        sampled_y.extend(y[selected])
+
+    sampled_x = np.array(sampled_x)
+    sampled_y = np.array(sampled_y)
+
+    # 셔플
+    shuffle_idx = np.random.permutation(len(sampled_x))
+    return sampled_x[shuffle_idx], sampled_y[shuffle_idx]
+
+# 데이터 줄이기 (예: 각 클래스당 300장만)
+x_train_paths, y_train = sample_data(x_train_paths, y_train, max_per_class=300)
+x_test_paths,  y_test  = sample_data(x_test_paths,  y_test,  max_per_class=150)
 
 # train 데이터 split
 x_train, x_val, y_train, y_val = train_test_split(
@@ -133,6 +161,9 @@ x_train, x_val, y_train, y_val = train_test_split(
     random_state=1337,
     stratify=y_train.argmax(axis=1)
 )
+
+# validation도 줄이기 (예: 100장만)
+x_val, y_val = sample_data(x_val, y_val, max_per_class=100)
 
 # 2. 제너레이터 연결 (경로를 이미지로 바꿔주는 역할)
 train_gen = DataGenerator(x_train, y_train, 16, (256, 256, 3))
@@ -229,3 +260,19 @@ for i in range(5):
     print(f"    Actual:    {class_names[true_class]}")
     print(f"    Predicted: {class_names[predicted_class]}")
     print()
+
+def count_class_distribution(paths, labels):
+    counts = {0: 0, 1: 0}
+    for i in range(len(paths)):
+        cls = int(np.argmax(labels[i]))
+        counts[cls] += 1
+    print("Class distribution:", counts)
+
+print("Train:")
+count_class_distribution(x_train, y_train)
+
+print("\nValidation:")
+count_class_distribution(x_val, y_val)
+
+print("\nTest:")
+count_class_distribution(x_test_paths, y_test)
