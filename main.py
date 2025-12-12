@@ -4,21 +4,17 @@ import os
 import json
 import cv2
 import numpy as np
-from sklearn.model_selection import StratifiedKFold
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import LabelEncoder
 import keras
-from keras import preprocessing
-
 os.makedirs('checkpoints', exist_ok=True)
-from sklearn.metrics import *
 from sklearn.model_selection import train_test_split
-from sklearn import metrics
 import math
 from tensorflow.keras import layers
 # 반복문(for 루프 등)의 진행 상황을 시각적으로 보여주는 라이브러리
 from tqdm import tqdm
 from pathlib import Path
+
+image_shape = (256, 256, 3)
+num_classes = 2
 
 def make_data_from_folder(route):
     X = []
@@ -130,114 +126,106 @@ test_path = r'C:\CatScan\Validation'
 x_train_paths, y_train = make_data_from_folder(train_path)
 x_test_paths, y_test = make_data_from_folder(test_path)
 
+# train 데이터 split
+x_train, x_val, y_train, y_val = train_test_split(
+    x_train_paths, y_train,
+    test_size=0.2,
+    random_state=1337,
+    stratify=y_train.argmax(axis=1)
+)
+
 # 2. 제너레이터 연결 (경로를 이미지로 바꿔주는 역할)
-train_gen = DataGenerator(x_train_paths, y_train, 16, (256, 256, 3))
-val_gen = DataGenerator(x_test_paths, y_test, 16, (256, 256, 3))
+train_gen = DataGenerator(x_train, y_train, 16, (256, 256, 3))
+# validation generator
+val_gen   = DataGenerator(x_val, y_val, 16, (256, 256, 3))
+test_gen = DataGenerator(x_test_paths, y_test, 16, (256, 256, 3))
 
-#
-# x_train1, y_train1 = make_test_data(train_path)
-# x_test, y_test = make_test_data(test_path)
-#
-# x_train, x_val, y_train, y_val = train_test_split(x_train1, y_train1, test_size=1 - 0.6, random_state=1337,
-#                                                   stratify=y_train1)
-#
-# encoder = LabelEncoder()
-#
-# encoder.fit(y_train)
-# encoder.fit(y_val)
-# encoder.fit(y_test)
-#
-# y_train = encoder.transform(y_train)
-# y_val = encoder.transform(y_val)
-# y_test = encoder.transform(y_test)
-#
-# y_train = tf.keras.utils.to_categorical(y_train)
-# y_val = tf.keras.utils.to_categorical(y_val)
-# y_test = tf.keras.utils.to_categorical(y_test)
-#
-# epochs = 30
-#
+epochs = 1
 
-# def make_model(input_shape, num_classes):
-#     inputs = keras.Input(shape=input_shape)
-#
-#     # Entry block
-#     [수정] Rescaling 층 삭제 (제너레이터에서 이미 함)
-#     x = layers.Conv2D(128, 3, strides=2, padding="same")(x)
-#     x = layers.BatchNormalization()(x)
-#     x = layers.Activation("relu")(x)
-#
-#     previous_block_activation = x  # Set aside residual
-#
-#     for size in [256, 512, 728]:
-#         x = layers.Activation("relu")(x)
-#         x = layers.SeparableConv2D(size, 3, padding="same")(x)
-#         x = layers.BatchNormalization()(x)
-#
-#         x = layers.Activation("relu")(x)
-#         x = layers.SeparableConv2D(size, 3, padding="same")(x)
-#         x = layers.BatchNormalization()(x)
-#
-#         x = layers.MaxPooling2D(3, strides=2, padding="same")(x)
-#
-#         residual = layers.Conv2D(size, 1, strides=2, padding="same")(
-#             previous_block_activation
-#         )
-#         x = layers.add([x, residual])  # Add back residual
-#         previous_block_activation = x  # Set aside next residual
-#
-#     x = layers.SeparableConv2D(1024, 3, padding="same")(x)
-#     x = layers.BatchNormalization()(x)
-#     x = layers.Activation("relu", name='last_layer')(x)
-#
-#     x = layers.GlobalAveragePooling2D()(x)
-#     activation = "softmax"
-#     outputs = layers.Dense(num_classes, activation=activation)(x)
-#     return keras.Model(inputs, outputs)
-#
-#
-# model = make_model(image_shape, num_classes=num_classes)
-#
-# ckpoint = tf.keras.callbacks.ModelCheckpoint(filepath=f'./model_save/cnn.h5', monitor='val_loss', save_best_only=True,
-#                                              save_weights_only=True)
-# earlystopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, mode='max')
-#
-# precision = tf.keras.metrics.Precision()
-# recall = tf.keras.metrics.Recall()
-# auc = tf.keras.metrics.AUC()
-# f1_score = tfa.metrics.F1Score(num_classes=num_classes, threshold=0.5)
-# learningrate = 0.0007
-#
-# model.summary()
-#
-# optimizer = tf.keras.optimizers.Adam(learning_rate=learningrate)
-#
-# model.compile(
-#     loss="categorical_crossentropy",
-#     optimizer=optimizer,
-#     metrics=["accuracy", precision, recall, auc, f1_score]
-# )
-# [중요 수정] generator를 쓸 때는 y_train과 batch_size를 넣지 않음.
-# history = model.fit(train_gen, epochs=epochs, validation_data=(x_val, y_val),
-#                     callbacks=[ckpoint, earlystopping])
-#
-# results = model.evaluate(x_test, y_test)
-# print(f"Test results - Loss: {results[0]}, Accuracy: {results[1]}")
-#
-# model.save(f'./model_save/cnn.h5')
-#
-# model = keras.models.load_model(f'./model_save/cnn.h5')
-#
-# class_names = ['pituitary_tumor', 'no_tumor', 'meningioma_tumor', 'glioma_tumor']
-#
-# y_pred = model.predict(x_test[:5])
-#
-# # 예측된 클래스와 실제 클래스 비교
-# for i in range(5):
-#     predicted_class = np.argmax(y_pred[i])  # 예측된 클래스 인덱스
-#     true_class = np.argmax(y_test[i])  # 실제 클래스 인덱스
-#
-#     print(f"Sample {i + 1}:")
-#     print(f"    Actual:    {class_names[true_class]}")
-#     print(f"    Predicted: {class_names[predicted_class]}")
-#     print()
+def make_model(input_shape, num_classes):
+    inputs = keras.Input(shape=input_shape)
+
+    # Entry block
+    x = inputs
+    x = layers.Conv2D(128, 3, strides=2, padding="same")(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation("relu")(x)
+
+    previous_block_activation = x  # Set aside residual
+
+    for size in [256, 512, 728]:
+        x = layers.Activation("relu")(x)
+        x = layers.SeparableConv2D(size, 3, padding="same")(x)
+        x = layers.BatchNormalization()(x)
+
+        x = layers.Activation("relu")(x)
+        x = layers.SeparableConv2D(size, 3, padding="same")(x)
+        x = layers.BatchNormalization()(x)
+
+        x = layers.MaxPooling2D(3, strides=2, padding="same")(x)
+
+        residual = layers.Conv2D(size, 1, strides=2, padding="same")(
+            previous_block_activation
+        )
+        x = layers.add([x, residual])  # Add back residual
+        previous_block_activation = x  # Set aside next residual
+
+    x = layers.SeparableConv2D(1024, 3, padding="same")(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation("relu", name='last_layer')(x)
+
+    x = layers.GlobalAveragePooling2D()(x)
+    activation = "softmax"
+    outputs = layers.Dense(num_classes, activation=activation)(x)
+    return keras.Model(inputs, outputs)
+
+
+model = make_model(image_shape, num_classes=num_classes)
+
+ckpoint = tf.keras.callbacks.ModelCheckpoint(filepath=f'./model_save/cnn.h5', monitor='val_loss', save_best_only=True,
+                                             save_weights_only=True)
+earlystopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, mode='max')
+
+precision = tf.keras.metrics.Precision()
+recall = tf.keras.metrics.Recall()
+auc = tf.keras.metrics.AUC()
+f1_score = tfa.metrics.F1Score(num_classes=num_classes, threshold=0.5)
+learningrate = 0.0007
+
+model.summary()
+
+optimizer = tf.keras.optimizers.Adam(learning_rate=learningrate)
+
+model.compile(
+    loss="categorical_crossentropy",
+    optimizer=optimizer,
+    metrics=["accuracy", precision, recall, auc, f1_score]
+)
+history = model.fit(train_gen, epochs=epochs, validation_data=val_gen,
+                    callbacks=[ckpoint, earlystopping])
+
+results = model.evaluate(test_gen)
+print(f"Test results - Loss: {results[0]}, Accuracy: {results[1]}")
+
+model.save(f'./model_save/cnn.h5')
+
+model = keras.models.load_model(f'./model_save/cnn.h5')
+
+class_names = ['no_pain', 'pain']
+
+# 첫 배치에서 5개 가져오기
+x_sample, y_sample = test_gen[0]
+x_input = x_sample[:5]
+y_true = y_sample[:5]
+
+y_pred = model.predict(x_input)
+
+# 예측된 클래스와 실제 클래스 비교
+for i in range(5):
+    predicted_class = np.argmax(y_pred[i])  # 예측된 클래스 인덱스
+    true_class = np.argmax(y_test[i])  # 실제 클래스 인덱스
+
+    print(f"Sample {i + 1}:")
+    print(f"    Actual:    {class_names[true_class]}")
+    print(f"    Predicted: {class_names[predicted_class]}")
+    print()
