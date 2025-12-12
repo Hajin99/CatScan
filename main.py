@@ -144,7 +144,7 @@ test_path = r'C:\CatScan\Test'
 x_train_paths, y_train = make_data_from_folder(train_path)
 x_test_paths, y_test = make_data_from_folder(test_path)
 
-def sample_data(x, y, max_per_class=300):
+def sample_data(x, y, max_per_class=100):
     """
     각 클래스 별로 일정 개수(max_per_class)만 남기고 샘플링해주는 함수
     """
@@ -169,8 +169,7 @@ def sample_data(x, y, max_per_class=300):
     return sampled_x[shuffle_idx], sampled_y[shuffle_idx]
 
 # 데이터 줄이기 (예: 각 클래스당 300장만)
-x_train_paths, y_train = sample_data(x_train_paths, y_train, max_per_class=3000)
-x_test_paths,  y_test  = sample_data(x_test_paths,  y_test,  max_per_class=500)
+x_train_paths, y_train = sample_data(x_train_paths, y_train, max_per_class=1000)
 
 # train 데이터 split
 x_train, x_val, y_train, y_val = train_test_split(
@@ -209,7 +208,7 @@ class_weights_dict = dict(enumerate(class_weights))
 
 test_gen = DataGenerator(x_test_paths, y_test, 16, (256, 256, 3))
 
-epochs = 1
+epochs = 10
 
 def make_model(input_shape, num_classes):
     inputs = keras.Input(shape=input_shape)
