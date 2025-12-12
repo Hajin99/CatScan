@@ -40,30 +40,27 @@ def make_data_from_folder(route):
 
     print(f"총 {len(label_files)}개의 라벨(JSON) 파일을 찾았습니다. 이미지 매칭 시작...")
 
-    pain_count = 0
-    nopain_count = 0
-
     for label_path in tqdm(label_files):
 
         try:
             label_path_str = str(label_path)
 
-            # 4. JSON 읽어서 통증(Pain) 라벨 확인
+            # 4. JSON 읽어서 통증(Disease) 라벨 확인
             with open(label_path_str, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            # 데이터 구조에 따라 pain 위치 찾기
-            is_pain = False
+            # 데이터 구조에 따라 disease 위치 찾기
+            is_disease = False
 
-            # 'owner' 안에 있는 'pain' 확인
+            # 'owner' 안에 있는 'disease' 확인
             owner_info = data.get("metadata", {}).get("owner")
             if owner_info:
-                pain_value = owner_info.get("pain")
+                disease_value = owner_info.get("disease")
                 # "Y"면 통증 있음, "N"이면 없음
-                if pain_value == "Y":
-                    is_pain = True
+                if disease_value == "Y":
+                    is_disease = True
 
-            label = 1 if is_pain else 0
+            label = 1 if is_disease else 0
 
             # 3. 짝꿍 이미지 경로 찾기
             # [label] -> [img] 로 변경, .json 확장자 없애고 폴더명으로 만들기
@@ -87,12 +84,6 @@ def make_data_from_folder(route):
 
             X.append(full_img_path)
             y.append(label)
-
-            # 카운트 업데이트
-            if label == 1:
-                pain_count += 1
-            else:
-                nopain_count += 1
 
         except Exception:
             continue
@@ -144,7 +135,7 @@ test_path = r'C:\CatScan\Test'
 x_train_paths, y_train = make_data_from_folder(train_path)
 x_test_paths, y_test = make_data_from_folder(test_path)
 
-def sample_data(x, y, max_per_class=100):
+def sample_data(x, y, max_per_class=300):
     """
     각 클래스 별로 일정 개수(max_per_class)만 남기고 샘플링해주는 함수
     """
@@ -183,14 +174,14 @@ x_train, x_val, y_train, y_val = train_test_split(
 x_val, y_val = sample_data(x_val, y_val, max_per_class=100)
 
 y_labels = np.argmax(y_train, axis=1)
-no_pain_idx = np.where(y_labels == 0)[0]
-pain_idx    = np.where(y_labels == 1)[0]
+no_disease_idx = np.where(y_labels == 0)[0]
+disease_idx    = np.where(y_labels == 1)[0]
 
-num_no_pain = min(len(no_pain_idx), len(pain_idx)*5)  # 비율 조절 가능
-np.random.shuffle(no_pain_idx)
-no_pain_idx = no_pain_idx[:num_no_pain]
+num_no_disease = min(len(no_disease_idx), len(disease_idx)*5)  # 비율 조절 가능
+np.random.shuffle(no_disease_idx)
+no_disease_idx = no_disease_idx[:num_no_disease]
 
-selected_idx = np.concatenate([no_pain_idx, pain_idx])
+selected_idx = np.concatenate([no_disease_idx, disease_idx])
 np.random.shuffle(selected_idx)
 
 x_train = x_train[selected_idx]
@@ -280,7 +271,7 @@ model.save(f'./model_save/cnn.h5')
 
 model = keras.models.load_model(f'./model_save/cnn.h5')
 
-class_names = ['no_pain', 'pain']
+class_names = ['no_disease', 'disease']
 
 # 첫 배치에서 5개 가져오기
 x_sample, y_sample = test_gen[0]
