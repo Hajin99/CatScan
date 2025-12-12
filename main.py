@@ -16,7 +16,7 @@ from pathlib import Path
 image_shape = (256, 256, 3)
 num_classes = 2
 
-def make_data_from_folder(route, min_pain=30, max_no_pain=100):
+def make_data_from_folder(route):
     X = []
     y = []
 
@@ -45,9 +45,6 @@ def make_data_from_folder(route, min_pain=30, max_no_pain=100):
 
     for label_path in tqdm(label_files):
 
-        if pain_count >= min_pain and nopain_count >= max_no_pain:
-            break  # 목표 수량 채웠으면 종료
-
         try:
             label_path_str = str(label_path)
 
@@ -60,18 +57,13 @@ def make_data_from_folder(route, min_pain=30, max_no_pain=100):
 
             # 'owner' 안에 있는 'pain' 확인
             owner_info = data.get("metadata", {}).get("owner")
-            pain_value = owner_info.get("pain") if owner_info else "N"
-            is_pain = (pain_value == "Y")
+            if owner_info:
+                pain_value = owner_info.get("pain")
+                # "Y"면 통증 있음, "N"이면 없음
+                if pain_value == "Y":
+                    is_pain = True
 
-            # pain 최소 개수 확보
-            if is_pain:
-                if pain_count >= min_pain:
-                    continue
-                label = 1
-            else:
-                if nopain_count >= max_no_pain:
-                    continue
-                label = 0
+            label = 1 if is_pain else 0
 
             # 3. 짝꿍 이미지 경로 찾기
             # [label] -> [img] 로 변경, .json 확장자 없애고 폴더명으로 만들기
@@ -176,8 +168,8 @@ def sample_data(x, y, max_per_class=300):
     return sampled_x[shuffle_idx], sampled_y[shuffle_idx]
 
 # 데이터 줄이기 (예: 각 클래스당 300장만)
-x_train_paths, y_train = sample_data(x_train_paths, y_train, max_per_class=300)
-x_test_paths,  y_test  = sample_data(x_test_paths,  y_test,  max_per_class=150)
+x_train_paths, y_train = sample_data(x_train_paths, y_train, max_per_class=1000)
+x_test_paths,  y_test  = sample_data(x_test_paths,  y_test,  max_per_class=500)
 
 # train 데이터 split
 x_train, x_val, y_train, y_val = train_test_split(
