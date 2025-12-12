@@ -16,7 +16,7 @@ from pathlib import Path
 image_shape = (256, 256, 3)
 num_classes = 2
 
-def make_data_from_folder(route):
+def make_data_from_folder(route, min_pain=30, max_no_pain=100):
     X = []
     y = []
 
@@ -40,7 +40,14 @@ def make_data_from_folder(route):
 
     print(f"총 {len(label_files)}개의 라벨(JSON) 파일을 찾았습니다. 이미지 매칭 시작...")
 
+    pain_count = 0
+    nopain_count = 0
+
     for label_path in tqdm(label_files):
+
+        if pain_count >= min_pain and nopain_count >= max_no_pain:
+            break  # 목표 수량 채웠으면 종료
+
         try:
             label_path_str = str(label_path)
 
@@ -53,13 +60,18 @@ def make_data_from_folder(route):
 
             # 'owner' 안에 있는 'pain' 확인
             owner_info = data.get("metadata", {}).get("owner")
-            if owner_info:
-                pain_value = owner_info.get("pain")
-                # "Y"면 통증 있음, "N"이면 없음
-                if pain_value == "Y":
-                    is_pain = True
+            pain_value = owner_info.get("pain") if owner_info else "N"
+            is_pain = (pain_value == "Y")
 
-            label = 1 if is_pain else 0
+            # pain 최소 개수 확보
+            if is_pain:
+                if pain_count >= min_pain:
+                    continue
+                label = 1
+            else:
+                if nopain_count >= max_no_pain:
+                    continue
+                label = 0
 
             # 3. 짝꿍 이미지 경로 찾기
             # [label] -> [img] 로 변경, .json 확장자 없애고 폴더명으로 만들기
@@ -83,6 +95,12 @@ def make_data_from_folder(route):
 
             X.append(full_img_path)
             y.append(label)
+
+            # 카운트 업데이트
+            if label == 1:
+                pain_count += 1
+            else:
+                nopain_count += 1
 
         except Exception:
             continue
