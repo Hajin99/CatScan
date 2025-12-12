@@ -68,14 +68,21 @@ def make_data_from_folder(route):
             # 폴더 안의 이미지 파일들 하나씩 읽기
             file_list = os.listdir(img_path_str)
 
-            for file_name in file_list:
-                if not (file_name.lower().endswith(".jpg")):
-                    continue
+            # jpg 파일 아닌 것 제거
+            file_list = [f for f in file_list if f.lower().endswith(".jpg")]
 
-                full_img_path = os.path.join(img_path_str, file_name)
+            # jpg가 하나도 없는 폴더 대비
+            if len(file_list) == 0:
+                continue
 
-                X.append(full_img_path)
-                y.append(label)
+            file_list.sort()
+            mid_index = len(file_list) // 2
+            selected_file = file_list[mid_index]
+
+            full_img_path = os.path.join(img_path_str, selected_file)
+
+            X.append(full_img_path)
+            y.append(label)
 
         except Exception:
             continue
@@ -120,7 +127,7 @@ class DataGenerator(tf.keras.utils.Sequence):
 
 # 실행 부분
 train_path = r'C:\CatScan\Training'
-test_path = r'C:\CatScan\Validation'
+test_path = r'C:\CatScan\Test'
 
 
 # 함수 실행
