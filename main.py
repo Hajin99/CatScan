@@ -78,39 +78,61 @@ def make_data_from_folder(route):
 
                 full_img_path = os.path.join(img_path_str, file_name)
 
-                # 5. 이미지 로드 (한글 경로 호환)
-                img_array = np.fromfile(full_img_path, np.uint8)
-                img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-
-                if img is None: continue
-
-                # 리사이즈 & 컬러 변환
-                img = cv2.resize(img, (256, 256))
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-                X.append(img)
+                X.append(full_img_path)
                 y.append(label)
 
         except Exception:
             continue
 
     # 6. 결과 변환
-    X = np.array(X).astype(np.float32) / 255.0  # 정규화
-    y = np.array(y).astype(np.float32)
-
-    # 원-핫 인코딩 (필수)
+    X = np.array(X)
     y = tf.keras.utils.to_categorical(y, num_classes=2)
 
     print(f"로딩 완료! 총 {len(X)}개의 데이터 준비됨.")
     return X, y
+
+# 경로(X)와 라벨(y)을 받아서, 이미지를 배치 단위로 읽어주는 함수
+class DataGenerator(tf.keras.utils.Sequence):
+    def __init__(self, x_set, y_set, batch_size, image_size):
+        self.x, self.y = x_set, y_set
+        self.batch_size = batch_size
+        self.image_size = image_size
+
+    def __len__(self):
+        return math.ceil(len(self.x) / self.batch_size)
+
+    def __getitem__(self, idx):
+        # 이번에 학습할 배치만큼 경로를 꺼냄
+        batch_x_paths = self.x[idx * self.batch_size: (idx + 1) * self.batch_size]
+        batch_y = self.y[idx * self.batch_size: (idx + 1) * self.batch_size]
+
+        images = []
+        for path in batch_x_paths:
+            # 여기서 실시간으로 이미지를 읽음 (메모리 효율적)
+            img_array = np.fromfile(path, np.uint8)
+            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+            if img is not None:
+                img = cv2.resize(img, self.image_size[:2])
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                img = img.astype(np.float32) / 255.0
+                images.append(img)
+            else:
+                # 이미지가 깨졌을 경우 검은 화면으로 대체 (에러 방지)
+                images.append(np.zeros((self.image_size[0], self.image_size[1], 3)))
+
+        return np.array(images), np.array(batch_y)
 
 # 실행 부분
 train_path = r'C:\CatScan\Training'
 test_path = r'C:\CatScan\Validation'
 
 # 함수 실행
-x_train, y_train = make_data_from_folder(train_path)
-x_test, y_test = make_data_from_folder(test_path)
+x_train_paths, y_train = make_data_from_folder(train_path)
+x_test_paths, y_test = make_data_from_folder(test_path)
+
+# 2. 제너레이터 연결 (경로를 이미지로 바꿔주는 역할)
+train_gen = DataGenerator(x_train_paths, y_train, 16, (256, 256, 3))
+val_gen = DataGenerator(x_test_paths, y_test, 16, (256, 256, 3))
 
 #
 # x_train1, y_train1 = make_test_data(train_path)
@@ -135,12 +157,12 @@ x_test, y_test = make_data_from_folder(test_path)
 #
 # epochs = 30
 #
-#
+
 # def make_model(input_shape, num_classes):
 #     inputs = keras.Input(shape=input_shape)
 #
 #     # Entry block
-#     x = layers.Rescaling(1.0 / 255)(inputs)
+#     [수정] Rescaling 층 삭제 (제너레이터에서 이미 함)
 #     x = layers.Conv2D(128, 3, strides=2, padding="same")(x)
 #     x = layers.BatchNormalization()(x)
 #     x = layers.Activation("relu")(x)
@@ -195,8 +217,8 @@ x_test, y_test = make_data_from_folder(test_path)
 #     optimizer=optimizer,
 #     metrics=["accuracy", precision, recall, auc, f1_score]
 # )
-#
-# history = model.fit(x_train, y_train, batch_size=32, epochs=epochs, validation_data=(x_val, y_val),
+# [중요 수정] generator를 쓸 때는 y_train과 batch_size를 넣지 않음.
+# history = model.fit(train_gen, epochs=epochs, validation_data=(x_val, y_val),
 #                     callbacks=[ckpoint, earlystopping])
 #
 # results = model.evaluate(x_test, y_test)
