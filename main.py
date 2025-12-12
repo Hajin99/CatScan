@@ -149,6 +149,7 @@ def sample_data(x, y, max_per_class=300):
     각 클래스 별로 일정 개수(max_per_class)만 남기고 샘플링해주는 함수
     """
     y_labels = np.argmax(y, axis=1)
+
     sampled_x = []
     sampled_y = []
 
@@ -168,7 +169,7 @@ def sample_data(x, y, max_per_class=300):
     return sampled_x[shuffle_idx], sampled_y[shuffle_idx]
 
 # 데이터 줄이기 (예: 각 클래스당 300장만)
-x_train_paths, y_train = sample_data(x_train_paths, y_train, max_per_class=1000)
+x_train_paths, y_train = sample_data(x_train_paths, y_train, max_per_class=3000)
 x_test_paths,  y_test  = sample_data(x_test_paths,  y_test,  max_per_class=500)
 
 # train 데이터 split
@@ -182,10 +183,30 @@ x_train, x_val, y_train, y_val = train_test_split(
 # validation도 줄이기 (예: 100장만)
 x_val, y_val = sample_data(x_val, y_val, max_per_class=100)
 
+y_labels = np.argmax(y_train, axis=1)
+no_pain_idx = np.where(y_labels == 0)[0]
+pain_idx    = np.where(y_labels == 1)[0]
+
+num_no_pain = min(len(no_pain_idx), len(pain_idx)*5)  # 비율 조절 가능
+np.random.shuffle(no_pain_idx)
+no_pain_idx = no_pain_idx[:num_no_pain]
+
+selected_idx = np.concatenate([no_pain_idx, pain_idx])
+np.random.shuffle(selected_idx)
+
+x_train = x_train[selected_idx]
+y_train = y_train[selected_idx]
+
 # 2. 제너레이터 연결 (경로를 이미지로 바꿔주는 역할)
 train_gen = DataGenerator(x_train, y_train, 16, (256, 256, 3))
 # validation generator
 val_gen   = DataGenerator(x_val, y_val, 16, (256, 256, 3))
+
+from sklearn.utils import class_weight
+y_labels = np.argmax(y_train, axis=1)
+class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(y_labels), y=y_labels)
+class_weights_dict = dict(enumerate(class_weights))
+
 test_gen = DataGenerator(x_test_paths, y_test, 16, (256, 256, 3))
 
 epochs = 1
@@ -250,7 +271,8 @@ model.compile(
     metrics=["accuracy", precision, recall, auc, f1_score]
 )
 history = model.fit(train_gen, epochs=epochs, validation_data=val_gen,
-                    callbacks=[ckpoint, earlystopping])
+                    callbacks=[ckpoint, earlystopping],
+                    class_weight=class_weights_dict)
 
 results = model.evaluate(test_gen)
 print(f"Test results - Loss: {results[0]}, Accuracy: {results[1]}")
