@@ -1,5 +1,5 @@
-# 1. Basic CNN (기초)
-# 특징: 레이어가 적고 단순함. 성능이 제일 낮게 나올 것임. "기준"이 되는 모델.
+# 3. MobileNetV2 (전이학습 - 경량화)
+# 특징: 데이터가 적을 때 효율이 가장 좋음.
 
 import tensorflow as tf
 import tensorflow_addons as tfa
@@ -206,40 +206,22 @@ epochs = 10
 
 def make_model(input_shape, num_classes):
     inputs = keras.Input(shape=input_shape)
+    x = layers.RandomFlip("horizontal")(inputs)
+    x = layers.RandomRotation(0.2)(x)
 
-    # Entry block
-    x = inputs
-    x = layers.Conv2D(128, 3, strides=2, padding="same")(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation("relu")(x)
+    # 전이학습 모델 불러오기
+    base_model = tf.keras.applications.MobileNetV2(
+        include_top=False, weights='imagenet', input_shape=input_shape
+    )
+    base_model.trainable = False
 
-    previous_block_activation = x  # Set aside residual
-
-    for size in [256, 512, 728]:
-        x = layers.Activation("relu")(x)
-        x = layers.SeparableConv2D(size, 3, padding="same")(x)
-        x = layers.BatchNormalization()(x)
-
-        x = layers.Activation("relu")(x)
-        x = layers.SeparableConv2D(size, 3, padding="same")(x)
-        x = layers.BatchNormalization()(x)
-
-        x = layers.MaxPooling2D(3, strides=2, padding="same")(x)
-
-        residual = layers.Conv2D(size, 1, strides=2, padding="same")(
-            previous_block_activation
-        )
-        x = layers.add([x, residual])  # Add back residual
-        previous_block_activation = x  # Set aside next residual
-
-    x = layers.SeparableConv2D(1024, 3, padding="same")(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.Activation("relu", name='last_layer')(x)
-
+    x = tf.keras.applications.mobilenet_v2.preprocess_input(x)
+    x = base_model(x, training=False)
     x = layers.GlobalAveragePooling2D()(x)
-    activation = "softmax"
-    outputs = layers.Dense(num_classes, activation=activation)(x)
-    return keras.Model(inputs, outputs)
+    x = layers.Dropout(0.2)(x)
+    outputs = layers.Dense(num_classes, activation='softmax')(x)
+
+    return keras.Model(inputs, outputs, name="MobileNetV2")
 
 model = make_model(image_shape, num_classes=num_classes)
 
