@@ -1,3 +1,7 @@
+# 1. Basic CNN (기초)
+# 데이터 불균형 문제로 적은 데이터 수 증강 시도.. 성능이 더 안좋아짐...
+# 결국 pain->disease 사용으로 바꿨다.
+
 import tensorflow as tf
 import tensorflow_addons as tfa
 import os
