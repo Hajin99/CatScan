@@ -202,7 +202,7 @@ class_weights_dict = dict(enumerate(class_weights))
 
 test_gen = DataGenerator(x_test_paths, y_test, 16, (256, 256, 3))
 
-epochs = 10
+epochs = 20
 
 def make_model(input_shape, num_classes):
     inputs = keras.Input(shape=input_shape)
@@ -263,8 +263,7 @@ model.compile(
     metrics=["accuracy", precision, recall, auc, f1_score]
 )
 history = model.fit(train_gen, epochs=epochs, validation_data=val_gen,
-                    callbacks=[ckpoint, earlystopping],
-                    class_weight=class_weights_dict)
+                    callbacks=[ckpoint, earlystopping])
 
 results = model.evaluate(test_gen)
 print(f"Test results - Loss: {results[0]}, Accuracy: {results[1]}")
