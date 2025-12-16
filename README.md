@@ -2,26 +2,16 @@
 🔍 캣스캔: 고양이 행동 및 표정을 통한 통증·질병 조기 탐지 인공지능 모델
 
 ## Project
-- 고양이의 특정 자세 2가지(arch, lying) 이미지를 분석하여 '통증 있음(Pain)' vs '정상(Normal)'을 분류
+- 고양이의 특정 자세 4가지(arch, lying, roll, sitdown) 이미지를 분석하여 '질병 있음(Y)' vs '없음(N)'을 분류
 - input : Cat Image Data(jpg)
-- model : CNN based Classification Model
+- model : Mini-Xception, MobileNetV2, ResNet50, EfficientNetB0
 
 ## Data 
 - [이미지 출처]
 https://www.aihub.or.kr/aihubdata/data/view.do?pageIndex=1&currMenu=115&topMenu=100&srchOptnCnd=OPTNCND001&searchKeyword=%EA%B3%A0%EC%96%91%EC%9D%B4&srchDetailCnd=DETAILCND001&srchOrder=ORDER001&srchPagePer=20&aihubDataSe=data&dataSetSn=59
 
 ## Folder
-```
-CatScan/
-├── Training/           <-- 학습용 (이미지+라벨)
-│   └── CAT/
-│      ├── ARCH/
-│      └── LYING/
-└── Validation/         <-- 검증용 (이미지+라벨)
-      └── CAT/
-        ├── ARCH/
-        └── LYING/
-```
+<img width="219" height="789" alt="image" src="https://github.com/user-attachments/assets/4c2d2091-650c-44c5-b16a-8f29b3ef2198" />
 
 ## Environment
 - Anaconda PowerShell Prompt
